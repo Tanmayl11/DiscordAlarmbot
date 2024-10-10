@@ -35,7 +35,7 @@ module.exports = {
     }
 
     try {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
       const { hours, minutes } = parseTime(time);
       const validDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayIndex = validDays.indexOf(day.toLowerCase());

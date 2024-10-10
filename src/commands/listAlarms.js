@@ -14,7 +14,7 @@ module.exports = {
 
     try {
       // Defer the reply to allow more time for processing
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
 
       // Cleanup expired alarms
       scheduleService.cleanupExpiredAlarms();

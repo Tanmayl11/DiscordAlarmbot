@@ -30,7 +30,7 @@ module.exports = {
     }
 
     try {
-      await interaction.deferReply();
+      await interaction.deferReply({ ephemeral: true });
       const { hours, minutes } = parseTime(time);
       const job = await scheduleService.scheduleMessage(interaction, timezone, `${hours}:${minutes}`, scheduledMessage);
 

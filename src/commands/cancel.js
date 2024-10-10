@@ -14,7 +14,7 @@ module.exports = {
     const interactionId = interaction.options.getString('interactionid');
     try {
        // Defer the reply to allow more time for processing
-       await interaction.deferReply();
+       await interaction.deferReply({ ephemeral: true });
       const success = scheduleService.cancelJob(interactionId);
 
       if (success) {
