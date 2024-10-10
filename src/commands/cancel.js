@@ -13,6 +13,8 @@ module.exports = {
   async execute(interaction) {
     const interactionId = interaction.options.getString('interactionid');
     try {
+       // Defer the reply to allow more time for processing
+       await interaction.deferReply();
       const success = scheduleService.cancelJob(interactionId);
 
       if (success) {
@@ -21,13 +23,13 @@ module.exports = {
           .setTitle('Alert Canceled')
           .setDescription(`Alert with ID ${interactionId} has been canceled.`);
 
-        await interaction.reply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed] });
       } else {
-        await interaction.reply(`No alert found with ID ${interactionId}.`);
+        await interaction.editReply(`No alert found with ID ${interactionId}.`);
       }
     } catch (error) {
       console.error('Error in cancel command:', error);
-      await interaction.reply({ content: `An error occurred: ${error.message}`, ephemeral: true });
+      await interaction.editReply({ content: `An error occurred: ${error.message}`, ephemeral: true });
     }
   },
 };

@@ -35,6 +35,7 @@ module.exports = {
     }
 
     try {
+      await interaction.deferReply();
       const { hours, minutes } = parseTime(time);
       const validDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayIndex = validDays.indexOf(day.toLowerCase());
@@ -55,10 +56,10 @@ module.exports = {
           { name: 'ID', value: interaction.id }
         );
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error in repeat command:', error);
-      await interaction.reply({ content: `An error occurred: ${error.message}`, ephemeral: true });
+      await interaction.editReply({ content: `An error occurred: ${error.message}`, ephemeral: true });
     }
   },
 };

@@ -13,6 +13,8 @@ module.exports = {
     }
 
     try {
+       // Defer the reply to allow more time for processing
+       await interaction.deferReply();
       scheduleService.cleanupExpiredAlarms();
 
       const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
@@ -32,10 +34,10 @@ module.exports = {
         .setTitle('Active Alarms')
         .setDescription(alarmList.join('\n\n'));
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error in list-alarms command:', error);
-      await interaction.reply({ content: `An error occurred: ${error.message}`, ephemeral: true });
+      await interaction.editReply({ content: `An error occurred: ${error.message}`, ephemeral: true });
     }
   },
 };

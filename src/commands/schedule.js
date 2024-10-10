@@ -30,6 +30,7 @@ module.exports = {
     }
 
     try {
+      await interaction.deferReply();
       const { hours, minutes } = parseTime(time);
       const job = await scheduleService.scheduleMessage(interaction, timezone, `${hours}:${minutes}`, scheduledMessage);
 
@@ -42,10 +43,10 @@ module.exports = {
           { name: 'ID', value: interaction.id }
         );
 
-      await interaction.reply({ embeds: [embed] });
+      await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error('Error in schedule command:', error);
-      await interaction.reply({ content: `An error occurred: ${error.message}`, ephemeral: true });
+      await interaction.editReply({ content: `An error occurred: ${error.message}`, ephemeral: true });
     }
   },
 };
