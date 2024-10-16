@@ -1,10 +1,10 @@
-# **Discord**Scheduler**Bot**
+# Discord Scheduler **Bot**
 
 **This **Discord bot allows users to schedule one**-**time and repeating messages **in** their server**.**
 
 ## **Features**
 
-* Schedule ***one******-time*** messages
+* Schedule ***one-time*** messages
 * Schedule ***repeating messages on specific days of the week***
 * List all active alarms for a server
 * Cancel scheduled messages
