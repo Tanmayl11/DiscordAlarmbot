@@ -14,14 +14,15 @@
 
 1. **Clone this repository**
 2. **Install dependencies**:**` npm install`**
-3. **Create a **`.env`** file and add the following:
+3. `npm install @discordjs/rest discord-api-types discord-scheduler-bot@file: discord.js dotenv express moment-timezone node-cron`
+4. **Create a **`.env`** file and add the following:
    `DISCORD_BOT_TOKEN=your_bot_token`
    `CLIENT_ID=your_Bots_application_id`
    `GUILD_ID=your_DISCORD_server_ID`
    `OWNER_ID=Your_USER_ID`
    `PORT=8000`**
-4. **Deploy slash commands**:**`node deploy-commands.js`**
-5. **Start the bot**:**` npm start`
+5. **Deploy slash commands**:**`node deploy-commands.js`**
+6. **Start the bot**:**` npm start`
 
 ## **Commands**
 
