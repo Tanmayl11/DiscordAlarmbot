@@ -1,4 +1,4 @@
-const { SlashCommandBuilder,PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const scheduleService = require('../services/scheduleService');
 const { hasAdminOrLeaderRole } = require('../utils/permissionUtils');
@@ -10,7 +10,10 @@ module.exports = {
     .setDefaultMemberPermissions(0n),
   async execute(interaction) {
     if (!hasAdminOrLeaderRole(interaction.member)) {
-      return interaction.reply({ content: 'You do not have permission to list alarms. Only users with Admin or Leader roles can use this command.', ephemeral: true });
+      return interaction.reply({ 
+        content: 'You do not have permission to list alarms. Only users with Admin or Leader roles can use this command.', 
+        ephemeral: true 
+      });
     }
 
     try {
@@ -25,7 +28,10 @@ module.exports = {
 
       // If there are no active alarms, edit the deferred reply
       if (guildAlarms.length === 0) {
-        return interaction.editReply({ content: 'There are no active alarms for this server.', ephemeral: true });
+        return interaction.editReply({ 
+          content: 'There are no active alarms for this server.', 
+          ephemeral: true 
+        });
       }
 
       // Create the alarm list
@@ -35,18 +41,24 @@ module.exports = {
         return `ID: ${id}\nSchedule: ${dayText} at ${time} ${timezone}\nMessage: "${alarmMessage}"`;
       });
 
+      // Ensure the embed doesn't exceed Discord's character limit
+      const description = alarmList.join('\n\n').substring(0, 4096);
+
       // Create an embed with the alarm details
       const embed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('Active Alarms')
-        .setDescription(alarmList.join('\n\n'));
+        .setDescription(description);
 
       // Edit the deferred reply with the embed
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
-      console.error('Error in list-alarms command:', error);
+      console.error(`Error in list-alarms command for guild ${interaction.guild.id}:`, error);
       // If an error occurs, edit the reply to show an error message
-      await interaction.editReply({ content: `An error occurred: ${error.message}`, ephemeral: true });
+      await interaction.editReply({ 
+        content: `An error occurred: ${error.message}`, 
+        ephemeral: true 
+      });
     }
   },
 };
