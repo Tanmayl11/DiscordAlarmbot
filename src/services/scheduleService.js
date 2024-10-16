@@ -28,6 +28,7 @@ class ScheduleService {
     this.scheduledJobs.set(interaction.id, {
       job,
       details: {
+        createdBy: interaction.user.id,
         timezone,
         time,
         message: scheduledMessage,

@@ -1,12 +1,13 @@
-const { SlashCommandBuilder } = require('@discordjs/builders');
+const { SlashCommandBuilder,PermissionFlagsBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const scheduleService = require('../services/scheduleService');
 const { hasAdminOrLeaderRole } = require('../utils/permissionUtils');
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('list-alarms')
-    .setDescription('List all active alarms for this server'),
+    .setName('list-all-alarms')
+    .setDescription('List all active alarms for this server')
+    .setDefaultMemberPermissions(0n),
   async execute(interaction) {
     if (!hasAdminOrLeaderRole(interaction.member)) {
       return interaction.reply({ content: 'You do not have permission to list alarms. Only users with Admin or Leader roles can use this command.', ephemeral: true });

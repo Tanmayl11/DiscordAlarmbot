@@ -1,14 +1,7 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+const { client } = require('./src/bot');
 const { deployCommands } = require('./deploy-commands');
 const { handleInteraction } = require('./src/handlers/interactionHandler');
-
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-  ],
-});
 
 client.once('ready', async () => {
   console.log(`Bot is ready. Logged in as ${client.user.tag}`);

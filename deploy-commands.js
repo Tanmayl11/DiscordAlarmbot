@@ -14,19 +14,38 @@ for (const file of commandFiles) {
 
 const rest = new REST({ version: '9' }).setToken(process.env.DISCORD_BOT_TOKEN);
 
+async function getExistingCommands() {
+  try {
+    return await rest.get(Routes.applicationCommands(process.env.CLIENT_ID));
+  } catch (error) {
+    console.error('Error fetching existing commands:', error);
+    return [];
+  }
+}
+
 async function deployCommands() {
   try {
-    console.log('Started refreshing application (/) commands.');
+    console.log('Checking existing application (/) commands...');
 
-    await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID),
-      { body: commands },
-    );
+    const existingCommands = await getExistingCommands();
+    console.log(`Found ${existingCommands.length} existing commands:`);
+    existingCommands.forEach(cmd => console.log(`- ${cmd.name}`));
+    
+    if (JSON.stringify(existingCommands) !== JSON.stringify(commands)) {
+      console.log('Updating application (/) commands...');
 
-    console.log('Successfully reloaded application (/) commands.');
+      await rest.put(
+        Routes.applicationCommands(process.env.CLIENT_ID),
+        { body: commands },
+      );
+
+      console.log('Successfully reloaded application (/) commands.');
+    } else {
+      console.log('Application (/) commands are up to date.');
+    }
   } catch (error) {
     console.error('Error deploying commands:', error);
-    throw error;  // Re-throw the error so it can be caught in index.js
+    throw error;
   }
 }
 
