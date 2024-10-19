@@ -7,14 +7,14 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName('list-all-alarms')
     .setDescription('List all active alarms for this server')
-    .setDefaultMemberPermissions(0n),
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   async execute(interaction) {
-    if (!hasAdminOrLeaderRole(interaction.member)) {
-      return interaction.reply({ 
-        content: 'You do not have permission to list alarms. Only users with Admin or Leader roles can use this command.', 
-        ephemeral: true 
-      });
-    }
+//    if (!hasAdminOrLeaderRole(interaction.member)) {
+//      return interaction.reply({ 
+//        content: 'You do not have permission to list all alarms.   Use **/list-my-alarms** instead.\nOnly users with Admin or Leader roles can use this command.', 
+//        ephemeral: true 
+//      });
+//    }
 
     try {
       // Defer the reply to allow more time for processing
