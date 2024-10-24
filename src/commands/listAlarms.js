@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { EmbedBuilder } = require('discord.js');
 const scheduleService = require('../services/scheduleService');
-const { hasAdminOrLeaderRole } = require('../utils/permissionUtils');
+const moment = require('moment-timezone');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -9,13 +9,6 @@ module.exports = {
     .setDescription('List all active alarms for this server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   async execute(interaction) {
-//    if (!hasAdminOrLeaderRole(interaction.member)) {
-//      return interaction.reply({ 
-//        content: 'You do not have permission to list all alarms.   Use **/list-my-alarms** instead.\nOnly users with Admin or Leader roles can use this command.', 
-//        ephemeral: true 
-//      });
-//    }
-
     try {
       // Defer the reply to allow more time for processing
       await interaction.deferReply({ ephemeral: true });
@@ -34,8 +27,24 @@ module.exports = {
         });
       }
 
-      // Create the alarm list
-      const alarmList = guildAlarms.map(([id, jobInfo]) => {
+      // Sort alarms by the next occurrence time
+      const sortedAlarms = guildAlarms.sort(([idA, jobInfoA], [idB, jobInfoB]) => {
+        const nextRunA = moment.tz(`${jobInfoA.details.time}`, 'HH:mm', jobInfoA.details.timezone);
+        const nextRunB = moment.tz(`${jobInfoB.details.time}`, 'HH:mm', jobInfoB.details.timezone);
+
+        // Handle recurring alarms (dayNumber != '*') by checking the next day they will occur
+        if (jobInfoA.details.dayNumber !== '*') {
+          nextRunA.day(parseInt(jobInfoA.details.dayNumber));
+        }
+        if (jobInfoB.details.dayNumber !== '*') {
+          nextRunB.day(parseInt(jobInfoB.details.dayNumber));
+        }
+
+        return nextRunA.diff(nextRunB);
+      });
+
+      // Create the alarm list in ascending order
+      const alarmList = sortedAlarms.map(([id, jobInfo]) => {
         const { timezone, time, message: alarmMessage, dayNumber } = jobInfo.details;
         const dayText = dayNumber === '*' ? 'once' : `every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayNumber]}`;
         return `ID: ${id}\nSchedule: ${dayText} at ${time} ${timezone}\nMessage: "${alarmMessage}"`;
