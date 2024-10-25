@@ -8,65 +8,100 @@ module.exports = {
     .setName('list-all-alarms')
     .setDescription('List all active alarms for this server')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+
   async execute(interaction) {
     try {
-      // Defer the reply to allow more time for processing
       await interaction.deferReply({ ephemeral: true });
 
-      // Cleanup expired alarms
       scheduleService.cleanupExpiredAlarms();
-
-      // Get jobs for the guild
       const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
 
-      // If there are no active alarms, edit the deferred reply
       if (guildAlarms.length === 0) {
-        return interaction.editReply({ 
-          content: 'There are no active alarms for this server.', 
-          ephemeral: true 
+        return interaction.editReply({
+          content: 'There are no active alarms for this server.',
+          ephemeral: true
         });
       }
 
-      // Sort alarms by the next occurrence time
+      // Sort alarms by their next occurrence
       const sortedAlarms = guildAlarms.sort(([idA, jobInfoA], [idB, jobInfoB]) => {
-        const nextRunA = moment.tz(`${jobInfoA.details.time}`, 'HH:mm', jobInfoA.details.timezone);
-        const nextRunB = moment.tz(`${jobInfoB.details.time}`, 'HH:mm', jobInfoB.details.timezone);
-
-        // Handle recurring alarms (dayNumber != '*') by checking the next day they will occur
-        if (jobInfoA.details.dayNumber !== '*') {
-          nextRunA.day(parseInt(jobInfoA.details.dayNumber));
-        }
-        if (jobInfoB.details.dayNumber !== '*') {
-          nextRunB.day(parseInt(jobInfoB.details.dayNumber));
+        const now = moment().tz(jobInfoA.details.timezone);
+        
+        // For one-time alarms, use the execution time directly
+        if (jobInfoA.details.dayNumber === '*' && jobInfoB.details.dayNumber === '*') {
+          const timeA = moment(jobInfoA.details.executionTime);
+          const timeB = moment(jobInfoB.details.executionTime);
+          return timeA.diff(timeB);
         }
 
-        return nextRunA.diff(nextRunB);
+        // Calculate next occurrence for both alarms
+        const getNextOccurrence = (jobInfo) => {
+          const [hours, minutes] = jobInfo.details.time.split(':');
+          let nextRun = moment().tz(jobInfo.details.timezone)
+            .hour(parseInt(hours))
+            .minute(parseInt(minutes))
+            .second(0);
+
+          // If it's a one-time alarm, use the execution time
+          if (jobInfo.details.dayNumber === '*') {
+            return moment(jobInfo.details.executionTime);
+          }
+
+          // For recurring alarms, find the next occurrence
+          const targetDay = parseInt(jobInfo.details.dayNumber);
+          const currentDay = nextRun.day();
+
+          if (nextRun.isBefore(now) || (nextRun.isSame(now, 'day') && currentDay !== targetDay)) {
+            // If time has passed today or it's not the correct day, move to next occurrence
+            if (targetDay > currentDay) {
+              nextRun.day(targetDay);
+            } else {
+              nextRun.day(targetDay + 7);
+            }
+          } else if (currentDay !== targetDay) {
+            // If it's not the correct day but time hasn't passed
+            nextRun.day(targetDay);
+          }
+
+          return nextRun;
+        };
+
+        const nextA = getNextOccurrence(jobInfoA);
+        const nextB = getNextOccurrence(jobInfoB);
+        return nextA.diff(nextB);
       });
 
-      // Create the alarm list in ascending order
+      // Create the alarm list with more detailed timing information
       const alarmList = sortedAlarms.map(([id, jobInfo]) => {
         const { timezone, time, message: alarmMessage, dayNumber } = jobInfo.details;
-        const dayText = dayNumber === '*' ? 'once' : `every ${['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayNumber]}`;
-        return `ID: ${id}\nSchedule: ${dayText} at ${time} ${timezone}\nMessage: "${alarmMessage}"`;
+        let timing;
+        
+        if (dayNumber === '*') {
+          // For one-time alarms, show the full date and time
+          const executionTime = moment(jobInfo.details.executionTime);
+          timing = `once on ${executionTime.format('MMMM D')} at ${time}`;
+        } else {
+          // For recurring alarms, show the day and time
+          const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayNumber];
+          timing = `every ${day} at ${time}`;
+        }
+
+        return `ID: ${id}\nSchedule: ${timing} ${timezone}\nMessage: "${alarmMessage}"`;
       });
 
-      // Ensure the embed doesn't exceed Discord's character limit
       const description = alarmList.join('\n\n').substring(0, 4096);
 
-      // Create an embed with the alarm details
       const embed = new EmbedBuilder()
         .setColor('#0099ff')
         .setTitle('Active Alarms')
         .setDescription(description);
 
-      // Edit the deferred reply with the embed
       await interaction.editReply({ embeds: [embed] });
     } catch (error) {
       console.error(`Error in list-alarms command for guild ${interaction.guild.id}:`, error);
-      // If an error occurs, edit the reply to show an error message
-      await interaction.editReply({ 
-        content: `An error occurred: ${error.message}`, 
-        ephemeral: true 
+      await interaction.editReply({
+        content: `An error occurred: ${error.message}`,
+        ephemeral: true
       });
     }
   },
