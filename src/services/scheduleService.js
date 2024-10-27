@@ -1,9 +1,72 @@
 const cron = require("node-cron");
 const moment = require("moment-timezone");
+const { PrismaClient } = require("@prisma/client");
 
 class ScheduleService {
   constructor() {
-    this.scheduledJobs = new Map();
+    this.prisma = new PrismaClient();
+    this.activeJobs = new Map(); // Keep track of running cron jobs
+    this.initializeJobs(); // Load existing alarms on startup
+
+    // Run cleanup every day at midnight
+    cron.schedule("0 0 * * *", () => {
+      this.cleanupExpiredAlarms();
+    });
+  }
+
+  async initializeJobs() {
+    try {
+      // Clean up any expired alarms before initializing
+      await this.cleanupExpiredAlarms();
+
+      const activeAlarms = await this.prisma.alarm.findMany({
+        where: { isActive: true },
+      });
+
+      for (const alarm of activeAlarms) {
+        this.setupCronJob(alarm);
+      }
+
+      console.log(`Initialized ${activeAlarms.length} active alarms`);
+    } catch (error) {
+      console.error("Error initializing jobs:", error);
+    }
+  }
+
+  setupCronJob(alarm) {
+    const [hours, minutes] = alarm.time.split(":");
+    const cronExpression = `${minutes} ${hours} * * ${alarm.dayNumber}`;
+
+    const job = cron.schedule(
+      cronExpression,
+      async () => {
+        try {
+          // Get the client and channel
+          const guild = await this.client?.guilds.fetch(alarm.guildId);
+          const channel = await guild?.channels.fetch(alarm.channelId);
+
+          if (channel) {
+            await channel.send(alarm.message);
+            console.log(
+              `Scheduled message sent successfully for alarm ${alarm.id}`
+            );
+
+            // For one-time alarms, delete after sending
+            if (alarm.dayNumber === "*") {
+              await this.deleteAlarm(alarm.id);
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Error sending scheduled message for alarm ${alarm.id}:`,
+            error
+          );
+        }
+      },
+      { timezone: alarm.timezone }
+    );
+
+    this.activeJobs.set(alarm.id, job);
   }
 
   async scheduleMessage(
@@ -14,10 +77,8 @@ class ScheduleService {
     dayNumber = "*"
   ) {
     const [hours, minutes] = time.split(":");
-    const cronExpression = `${minutes} ${hours} * * ${dayNumber}`;
-
-    // Calculate the execution time for one-time alarms
     let executionTime = null;
+
     if (dayNumber === "*") {
       executionTime = moment()
         .tz(timezone)
@@ -25,99 +86,140 @@ class ScheduleService {
         .minute(parseInt(minutes))
         .second(0);
 
-      // If the time has already passed today, set it for tomorrow
       if (executionTime.isBefore(moment().tz(timezone))) {
         executionTime.add(1, "day");
       }
     }
 
-    const job = cron.schedule(
-      cronExpression,
-      async () => {
-        try {
-          await interaction.channel.send(scheduledMessage);
-          console.log("Scheduled message sent successfully.");
-
-          if (dayNumber === "*") {
-            this.scheduledJobs.delete(interaction.id);
-            job.stop();
-          }
-        } catch (error) {
-          console.error("Error sending scheduled message:", error);
-        }
-      },
-      { timezone }
-    );
-
-    this.scheduledJobs.set(interaction.id, {
-      job,
-      details: {
+    const alarm = await this.prisma.alarm.create({
+      data: {
+        id: interaction.id,
         createdBy: interaction.user.id,
+        guildId: interaction.guild.id,
+        channelId: interaction.channel.id,
+        message: scheduledMessage,
         timezone,
         time,
-        message: scheduledMessage,
-        dayNumber,
-        channelId: interaction.channel.id,
-        guildId: interaction.guild.id,
-        createdAt: moment().tz(timezone).format(),
-        executionTime: executionTime ? executionTime.format() : null,
+        dayNumber: dayNumber.toString(),
+        executionTime: executionTime?.toDate() || null,
+        isActive: true,
       },
     });
 
-    return job;
+    this.setupCronJob(alarm);
+    return alarm;
   }
 
-  getJobsForGuild(guildId) {
-    // First clean up expired alarms
-    this.cleanupExpiredAlarms();
+  async getJobsForGuild(guildId) {
+    await this.cleanupExpiredAlarms();
 
-    // Then return the remaining valid alarms
-    return Array.from(this.scheduledJobs.entries()).filter(([_, jobInfo]) => {
-      if (jobInfo.details.guildId !== guildId) {
-        return false;
+    const alarms = await this.prisma.alarm.findMany({
+      where: {
+        guildId: guildId,
+        isActive: true,
+        OR: [
+          { dayNumber: { not: "*" } },
+          {
+            AND: [{ dayNumber: "*" }, { executionTime: { gt: new Date() } }],
+          },
+        ],
+      },
+      orderBy: { executionTime: "asc" },
+    });
+
+    return alarms.map((alarm) => [
+      alarm.id,
+      {
+        details: {
+          createdBy: alarm.createdBy,
+          timezone: alarm.timezone,
+          time: alarm.time,
+          message: alarm.message,
+          dayNumber: alarm.dayNumber,
+          channelId: alarm.channelId,
+          guildId: alarm.guildId,
+          createdAt: alarm.createdAt.toISOString(),
+          executionTime: alarm.executionTime?.toISOString() || null,
+        },
+      },
+    ]);
+  }
+
+  async cleanupExpiredAlarms() {
+    const now = new Date();
+
+    // First, find all expired one-time alarms
+    const expiredAlarms = await this.prisma.alarm.findMany({
+      where: {
+        dayNumber: "*",
+        executionTime: { lt: now },
+      },
+    });
+
+    // Stop any active cron jobs for expired alarms
+    for (const alarm of expiredAlarms) {
+      const job = this.activeJobs.get(alarm.id);
+      if (job) {
+        job.stop();
+        this.activeJobs.delete(alarm.id);
       }
+    }
 
-      // Always include recurring alarms
-      if (jobInfo.details.dayNumber !== "*") {
-        return true;
-      }
+    // Delete the expired alarms from the database
+    const result = await this.prisma.alarm.deleteMany({
+      where: {
+        dayNumber: "*",
+        executionTime: { lt: now },
+      },
+    });
 
-      // For one-time alarms, compare times in the same timezone
-      if (jobInfo.details.executionTime) {
-        const executionMoment = moment(jobInfo.details.executionTime);
-        const nowMoment = moment().tz(jobInfo.details.timezone);
-        return executionMoment.isAfter(nowMoment);
-      }
+    console.log(`Deleted ${result.count} expired alarms`);
+    return result.count;
+  }
 
-      return false;
+  async cancelJob(jobId) {
+    const job = this.activeJobs.get(jobId);
+    if (job) {
+      job.stop();
+      this.activeJobs.delete(jobId);
+    }
+
+    await this.prisma.alarm.delete({
+      where: { id: jobId },
+    });
+
+    return true;
+  }
+
+  async deleteAlarm(alarmId) {
+    const job = this.activeJobs.get(alarmId);
+    if (job) {
+      job.stop();
+      this.activeJobs.delete(alarmId);
+    }
+
+    await this.prisma.alarm.delete({
+      where: { id: alarmId },
     });
   }
 
-  cleanupExpiredAlarms() {
-    const entries = Array.from(this.scheduledJobs.entries());
-
-    for (const [id, jobInfo] of entries) {
-      if (jobInfo.details.dayNumber === "*" && jobInfo.details.executionTime) {
-        const executionMoment = moment(jobInfo.details.executionTime);
-        const nowMoment = moment().tz(jobInfo.details.timezone);
-
-        if (executionMoment.isBefore(nowMoment)) {
-          console.log(`Cleaning up expired alarm: ${id}`);
-          jobInfo.job.stop();
-          this.scheduledJobs.delete(id);
-        }
-      }
-    }
+  setClient(client) {
+    this.client = client;
   }
 
-  cancelJob(jobId) {
-    const jobInfo = this.scheduledJobs.get(jobId);
-    if (jobInfo) {
-      jobInfo.job.stop();
-      this.scheduledJobs.delete(jobId);
-      return true;
+  async stopAllJobs() {
+    let count = 0;
+    for (const [id, job] of this.activeJobs) {
+      job.stop();
+      this.activeJobs.delete(id);
+      count++;
     }
-    return false;
+    return count;
+  }
+
+  async disconnect() {
+    await this.stopAllJobs();
+    await this.prisma.$disconnect();
   }
 }
 

@@ -1,3 +1,4 @@
+// src/commands/listAlarms.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
@@ -13,86 +14,72 @@ module.exports = {
     try {
       await interaction.deferReply({ ephemeral: true });
 
-      scheduleService.cleanupExpiredAlarms();
-      const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
+      const alarms = await scheduleService.prisma.alarm.findMany({
+        where: {
+          guildId: interaction.guild.id,
+          isActive: true,
+        },
+      });
 
-      if (guildAlarms.length === 0) {
+      if (alarms.length === 0) {
         return interaction.editReply({
           content: "There are no active alarms for this server.",
           ephemeral: true,
         });
       }
 
-      // Sort alarms by their next occurrence
-      const sortedAlarms = guildAlarms.sort(
-        ([idA, jobInfoA], [idB, jobInfoB]) => {
-          const now = moment().tz(jobInfoA.details.timezone);
+      // Sort alarms by next occurrence
+      const sortedAlarms = alarms.sort((a, b) => {
+        const now = moment();
 
-          // For one-time alarms, use the execution time directly
-          if (
-            jobInfoA.details.dayNumber === "*" &&
-            jobInfoB.details.dayNumber === "*"
-          ) {
-            const timeA = moment(jobInfoA.details.executionTime);
-            const timeB = moment(jobInfoB.details.executionTime);
-            return timeA.diff(timeB);
+        const getNextOccurrence = (alarm) => {
+          const [hours, minutes] = alarm.time.split(":");
+          let nextRun = moment()
+            .tz(alarm.timezone)
+            .hour(parseInt(hours))
+            .minute(parseInt(minutes))
+            .second(0);
+
+          // If it's a one-time alarm, use the execution time
+          if (alarm.dayNumber === "*") {
+            return moment(alarm.executionTime);
           }
 
-          // Calculate next occurrence for both alarms
-          const getNextOccurrence = (jobInfo) => {
-            const [hours, minutes] = jobInfo.details.time.split(":");
-            let nextRun = moment()
-              .tz(jobInfo.details.timezone)
-              .hour(parseInt(hours))
-              .minute(parseInt(minutes))
-              .second(0);
+          // For recurring alarms, find the next occurrence
+          const targetDay = parseInt(alarm.dayNumber);
+          const currentDay = nextRun.day();
 
-            // If it's a one-time alarm, use the execution time
-            if (jobInfo.details.dayNumber === "*") {
-              return moment(jobInfo.details.executionTime);
-            }
-
-            // For recurring alarms, find the next occurrence
-            const targetDay = parseInt(jobInfo.details.dayNumber);
-            const currentDay = nextRun.day();
-
-            if (
-              nextRun.isBefore(now) ||
-              (nextRun.isSame(now, "day") && currentDay !== targetDay)
-            ) {
-              // If time has passed today or it's not the correct day, move to next occurrence
-              if (targetDay > currentDay) {
-                nextRun.day(targetDay);
-              } else {
-                nextRun.day(targetDay + 7);
-              }
-            } else if (currentDay !== targetDay) {
-              // If it's not the correct day but time hasn't passed
+          if (
+            nextRun.isBefore(now) ||
+            (nextRun.isSame(now, "day") && currentDay !== targetDay)
+          ) {
+            // If time has passed today or it's not the correct day, move to next occurrence
+            if (targetDay > currentDay) {
               nextRun.day(targetDay);
+            } else {
+              nextRun.day(targetDay + 7);
             }
+          } else if (currentDay !== targetDay) {
+            // If it's not the correct day but time hasn't passed
+            nextRun.day(targetDay);
+          }
 
-            return nextRun;
-          };
+          return nextRun;
+        };
 
-          const nextA = getNextOccurrence(jobInfoA);
-          const nextB = getNextOccurrence(jobInfoB);
-          return nextA.diff(nextB);
-        }
-      );
+        const nextA = getNextOccurrence(a);
+        const nextB = getNextOccurrence(b);
+        return nextA.diff(nextB);
+      });
 
-      // Create the alarm list with more detailed timing information
-      const alarmList = sortedAlarms.map(([id, jobInfo]) => {
-        const {
-          timezone,
-          time,
-          message: alarmMessage,
-          dayNumber,
-        } = jobInfo.details;
+      // Create the alarm list
+      const alarmList = sortedAlarms.map((alarm) => {
+        const { time, message: alarmMessage, dayNumber, timezone } = alarm;
         let timing;
 
         if (dayNumber === "*") {
           // For one-time alarms, show the full date and time
-          const executionTime = moment(jobInfo.details.executionTime);
+          const executionTime = moment(alarm.executionTime);
           timing = `once on ${executionTime.format("MMMM D")} at ${time}`;
         } else {
           // For recurring alarms, show the day and time
@@ -104,11 +91,11 @@ module.exports = {
             "Thursday",
             "Friday",
             "Saturday",
-          ][dayNumber];
+          ][parseInt(dayNumber)];
           timing = `every ${day} at ${time}`;
         }
 
-        return `ID: ${id}\nSchedule: ${timing} ${timezone}\nMessage: "${alarmMessage}"`;
+        return `ID: ${alarm.id}\nSchedule: ${timing} ${timezone}\nMessage: "${alarmMessage}"`;
       });
 
       const description = alarmList.join("\n\n").substring(0, 4096);

@@ -1,0 +1,26 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Alarm {
+  id            String   @id
+  createdBy     String   // Discord user ID
+  guildId       String   // Discord server ID
+  channelId     String   // Discord channel ID
+  message       String   // The message to send
+  timezone      String
+  time          String   // HH:MM format
+  dayNumber     String   // "*" for one-time or 0-6 for weekly
+  createdAt     DateTime @default(now())
+  executionTime DateTime? // For one-time alarms
+  isActive      Boolean  @default(true)
+
+  @@index([guildId])
+  @@index([isActive])
+}
