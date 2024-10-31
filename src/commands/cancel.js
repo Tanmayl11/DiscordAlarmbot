@@ -17,7 +17,7 @@ module.exports = {
     try {
       // Defer the reply to allow more time for processing
       await interaction.deferReply({ ephemeral: true });
-      const success = scheduleService.cancelJob(interactionId);
+      const success = await scheduleService.cancelJob(interactionId);
 
       if (success) {
         const embed = new EmbedBuilder()
