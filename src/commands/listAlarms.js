@@ -17,8 +17,14 @@ module.exports = {
       const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
 
       if (guildAlarms.length === 0) {
+        const noAlarmsEmbed = new EmbedBuilder()
+          .setColor("#FFD700") // Yellow color
+          .setTitle("No Active Alarms")
+          .setDescription("No active alarms on this server.")
+          .setFooter({ text: "This information is visible only to you." });
+
         return interaction.editReply({
-          content: "There are no active alarms for this server.",
+          embeds: [noAlarmsEmbed],
           ephemeral: true,
         });
       }

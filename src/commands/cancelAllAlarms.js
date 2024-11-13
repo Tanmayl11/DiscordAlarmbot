@@ -5,9 +5,7 @@ const { hasAdminOrLeaderRole } = require("../utils/permissionUtils"); // Assumin
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("cancel-all-alarms")
-    .setDescription(
-      "Cancels all active alarms. Only accessible by Leaders and Admins."
-    )
+    .setDescription("Cancels all active alarms. Only accessible to users with Administrator privileges.")
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
   async execute(interaction) {
     // Check if the member has the required roles

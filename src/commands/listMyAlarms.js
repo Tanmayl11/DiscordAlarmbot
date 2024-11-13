@@ -20,8 +20,14 @@ module.exports = {
       );
 
       if (userJobs.length === 0) {
+        const noAlarmsEmbed = new EmbedBuilder()
+          .setColor("#FFD700") // Yellow color
+          .setTitle("No Active Alarms")
+          .setDescription("You have no active alarms.")
+          .setFooter({ text: "This information is visible only to you." });
+
         return interaction.editReply({
-          content: "You have no active alarms.",
+          embeds: [noAlarmsEmbed],
           ephemeral: true,
         });
       }
