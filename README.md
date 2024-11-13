@@ -1,42 +1,38 @@
-# Discord Scheduler **Bot**
 
-**This **Discord bot allows users to schedule one**-**time and repeating messages **in** their server**.**
+# Discord Alarm Bot
 
-## **Features**
+A Discord bot for scheduling both one-time and repeating messages with easy-to-manage alarms and notifications.
 
-* Schedule ***one-time*** messages
-* Schedule ***repeating messages on specific days of the week***
-* List all active alarms for a server
-* Cancel scheduled messages
-* **Admin and Leader** role permissions **for** certain commands
+## Features
 
-## **Setup**
+- **Schedule one-time** or **recurring messages**
+- **List** and **cancel** alarms for individual users or the entire server
+- **Role-based access** for specific commands (Admin/Leader)
 
-1. **Clone this repository**
-2. **Install dependencies**:**` npm install`**
-3. `npm install @discordjs/rest discord-api-types discord-scheduler-bot@file: discord.js dotenv express moment-timezone node-cron`
-4. **Create a **`.env`** file and add the following:
-   `DISCORD_BOT_TOKEN=your_bot_token`
-   `CLIENT_ID=your_Bots_application_id`
-   `GUILD_ID=your_DISCORD_server_ID`
-   `OWNER_ID=Your_USER_ID`
-   `PORT=8000`**
-5. **Deploy slash commands**:**`node deploy-commands.js`**
-6. **Start the bot**:**` npm start`
+## Setup
 
-## **Commands**
+1. Clone the repository.
+2. Install dependencies: `npm install`
+3. Create a `.env` file with:
+   ```plaintext
+   DISCORD_BOT_TOKEN=your_bot_token
+   CLIENT_ID=your_bot_app_id
+   GUILD_ID=your_server_id
+   OWNER_ID=your_user_id
+   PORT=8000
+   ```
+4. Deploy commands: `node deploy-commands.js`
+5. Start the bot: `npm start`
 
-* `/schedule`:Schedule a one-time message
-* `/repeat`:Schedule a repeating message
-* `/list-all-alarms`:List all active alarms **for** the **server**(**Admin**/**Leader** only)
-* `/list-My-alarms`: Lists alarms created by only you
-* `/cancel`:Cancel a scheduled message
-* *`/Cancel-All-Alarms`*: Cancels all alarms on a server(**Admin/Leader** roles only)
+## Commands
 
-## **Contributing**
+- `/schedule`: Schedule a one-time message
+- `/repeat`: Schedule a recurring message
+- `/list-my-alarms`: List alarms created by you
+- `/cancel`: Cancel a specific alarm
+- `/list-all-alarms`: List all active alarms (Admin/Leader only)
+- `/cancel-all-alarms`: Cancel all alarms in the server (Admin/Leader only)
 
-Feel free to open issues or submit pull requests to improve the bot.
+## Contributing
 
-## **License**
-
-**This** project is licensed under the **MIT**License.
+Feel free to submit issues or pull requests.
