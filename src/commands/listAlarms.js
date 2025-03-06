@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 const moment = require("moment-timezone");
@@ -11,7 +11,7 @@ module.exports = {
 
   async execute(interaction) {
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       scheduleService.cleanupExpiredAlarms();
       const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
@@ -25,7 +25,7 @@ module.exports = {
 
         return interaction.editReply({
           embeds: [noAlarmsEmbed],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -124,7 +124,10 @@ module.exports = {
         .setTitle("Active Alarms")
         .setDescription(description);
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ 
+        embeds: [embed],
+        flags: MessageFlags.Ephemeral
+      });
     } catch (error) {
       console.error(
         `Error in list-alarms command for guild ${interaction.guild.id}:`,
@@ -132,7 +135,7 @@ module.exports = {
       );
       await interaction.editReply({
         content: `An error occurred: ${error.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral
       });
     }
   },

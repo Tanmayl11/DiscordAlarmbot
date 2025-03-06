@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 const moment = require("moment-timezone");
 
@@ -12,7 +12,7 @@ module.exports = {
     const guildId = interaction.guild.id;
 
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       const allJobs = scheduleService.getJobsForGuild(guildId);
       const userJobs = allJobs.filter(
@@ -28,7 +28,7 @@ module.exports = {
 
         return interaction.editReply({
           embeds: [noAlarmsEmbed],
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
@@ -128,12 +128,12 @@ module.exports = {
         .setDescription(description)
         .setFooter({ text: "This information is visible only to you." });
 
-      await interaction.editReply({ embeds: [embed], ephemeral: true });
+      await interaction.editReply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     } catch (error) {
       console.error("Error in list-my-alarms command:", error);
       await interaction.editReply({
         content: `An error occurred: ${error.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

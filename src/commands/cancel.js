@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 
@@ -16,7 +16,7 @@ module.exports = {
     const interactionId = interaction.options.getString("interactionid");
     try {
       // Defer the reply to allow more time for processing
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const success = scheduleService.cancelJob(interactionId);
 
       if (success) {
@@ -25,15 +25,21 @@ module.exports = {
           .setTitle("Alert Canceled")
           .setDescription(`Alert with ID ${interactionId} has been canceled.`);
 
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ 
+          embeds: [embed],
+          flags: MessageFlags.Ephemeral 
+        });
       } else {
-        await interaction.editReply(`No alert found with ID ${interactionId}.`);
+        await interaction.editReply({
+          content: `No alert found with ID ${interactionId}.`,
+          flags: MessageFlags.Ephemeral
+        });
       }
     } catch (error) {
       console.error("Error in cancel command:", error);
       await interaction.editReply({
         content: `An error occurred: ${error.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },

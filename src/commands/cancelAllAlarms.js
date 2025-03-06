@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { SlashCommandBuilder, PermissionFlagsBits, MessageFlags } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 const { hasAdminOrLeaderRole } = require("../utils/permissionUtils"); // Assuming you store the helper function here
 
@@ -13,7 +13,7 @@ module.exports = {
     //        if (!hasAdminOrLeaderRole(member)) {
     //            return interaction.reply({
     //                content: 'You do not have permission to use this command.',
-    //                ephemeral: true
+    //                flags: MessageFlags.Ephemeral
     //            });
     //        }
 
@@ -22,7 +22,7 @@ module.exports = {
     if (jobs.length === 0) {
       return interaction.reply({
         content: "There are no active alarms to cancel.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -32,7 +32,7 @@ module.exports = {
 
     await interaction.reply({
       content: "All alarms have been successfully canceled.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   },
 };

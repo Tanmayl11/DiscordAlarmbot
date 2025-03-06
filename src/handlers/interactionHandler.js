@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { MessageFlags } = require("discord.js");
 
 const commands = new Map();
 const commandFiles = fs
@@ -24,7 +25,7 @@ async function handleInteraction(interaction) {
     console.error(error);
     await interaction.reply({
       content: "There was an error while executing this command!",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 }

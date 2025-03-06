@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 const { parseTime } = require("../utils/timeUtils");
@@ -34,12 +34,12 @@ module.exports = {
     if (!moment.tz.zone(timezone)) {
       return interaction.reply({
         content: "Invalid timezone.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     try {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const { hours, minutes } = parseTime(time);
       const job = await scheduleService.scheduleMessage(
         interaction,
@@ -57,12 +57,15 @@ module.exports = {
           { name: "ID", value: interaction.id }
         );
 
-      await interaction.editReply({ embeds: [embed] });
+      await interaction.editReply({ 
+        embeds: [embed],
+        flags: MessageFlags.Ephemeral
+      });
     } catch (error) {
       console.error("Error in schedule command:", error);
       await interaction.editReply({
         content: `An error occurred: ${error.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
