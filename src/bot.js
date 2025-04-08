@@ -29,7 +29,7 @@ const startSelfPing = () => {
   setInterval(async () => {
     try {
       const response = await axios.get(`${appUrl}/health`);
-      console.log(`Self-ping successful: ${response.status}`);
+      //console.log(`Self-ping successful: ${response.status}`);
     } catch (error) {
       console.error("Self-ping failed:", error.message);
     }
