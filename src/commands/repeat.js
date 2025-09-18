@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
-const { parseTime } = require("../utils/timeUtils");
+const { parseTime, getTimezoneChoices, getDayChoices } = require("../utils/timeUtils");
 const moment = require("moment-timezone");
 
 module.exports = {
@@ -15,6 +15,7 @@ module.exports = {
         .setName("day")
         .setDescription("Day of the week (e.g., Monday)")
         .setRequired(true)
+        .addChoices(...getDayChoices())
     )
     .addStringOption((option) =>
       option
@@ -27,6 +28,7 @@ module.exports = {
         .setName("timezone")
         .setDescription("Timezone (e.g., America/New_York)")
         .setRequired(true)
+        .addChoices(...getTimezoneChoices())
     )
     .addStringOption((option) =>
       option

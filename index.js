@@ -3,7 +3,7 @@ const { client } = require("./src/bot");
 const { deployCommands } = require("./deploy-commands");
 const { handleInteraction } = require("./src/handlers/interactionHandler");
 
-client.once("ready", async () => {
+client.once("clientReady", async () => {
   console.log(`Bot is ready. Logged in as ${client.user.tag}`);
   try {
     await deployCommands();

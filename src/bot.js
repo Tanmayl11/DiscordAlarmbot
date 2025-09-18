@@ -37,7 +37,7 @@ const startSelfPing = () => {
 };
 
 // Start self-pinging after the bot is ready
-client.once("ready", () => {
+client.once("clientReady", () => {
   startSelfPing();
 });
 

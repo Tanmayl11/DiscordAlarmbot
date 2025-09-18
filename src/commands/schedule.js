@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, MessageFlags } = require("discord.js");
 const { EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
-const { parseTime } = require("../utils/timeUtils");
+const { parseTime, getTimezoneChoices } = require("../utils/timeUtils");
 const moment = require("moment-timezone");
 
 module.exports = {
@@ -9,11 +9,13 @@ module.exports = {
     .setName("schedule")
     .setDescription("Schedule a message at a specified time")
     .addStringOption((option) =>
-      option
-        .setName("timezone")
-        .setDescription("Timezone (e.g., America/New_York)")
-        .setRequired(true)
-    )
+  option
+    .setName("timezone")
+    .setDescription("Choose your timezone")
+    .setRequired(true)
+    .addChoices(...getTimezoneChoices())
+  )
+
     .addStringOption((option) =>
       option
         .setName("time")
