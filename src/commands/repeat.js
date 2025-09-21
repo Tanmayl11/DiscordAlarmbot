@@ -1,19 +1,16 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
-const { parseTime, getTimezoneChoices, getDayChoices } = require("../utils/timeUtils");
+const { parseTime, getDayChoices } = require("../utils/timeUtils");
 const moment = require("moment-timezone");
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("repeat")
-    .setDescription(
-      "Schedule a repeating message on a specific day of the week and time"
-    )
+    .setDescription("Schedule a repeating message on a specific day of the week and time")
     .addStringOption((option) =>
       option
         .setName("day")
-        .setDescription("Day of the week (e.g., Monday)")
+        .setDescription("Day of the week")
         .setRequired(true)
         .addChoices(...getDayChoices())
     )
@@ -26,9 +23,9 @@ module.exports = {
     .addStringOption((option) =>
       option
         .setName("timezone")
-        .setDescription("Timezone (e.g., America/New_York)")
+        .setDescription("Choose your timezone")
         .setRequired(true)
-        .addChoices(...getTimezoneChoices())
+        .setAutocomplete(true) // 🔹 changed
     )
     .addStringOption((option) =>
       option
@@ -36,6 +33,7 @@ module.exports = {
         .setDescription("The message to schedule")
         .setRequired(true)
     ),
+
   async execute(interaction) {
     const day = interaction.options.getString("day");
     const time = interaction.options.getString("time");
@@ -52,26 +50,21 @@ module.exports = {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const { hours, minutes } = parseTime(time);
+
       const validDays = [
-        "sunday",
-        "monday",
-        "tuesday",
-        "wednesday",
-        "thursday",
-        "friday",
-        "saturday",
+        "sunday", "monday", "tuesday",
+        "wednesday", "thursday", "friday", "saturday",
       ];
       const dayIndex = validDays.indexOf(day.toLowerCase());
 
       if (dayIndex === -1) {
         return interaction.reply({
-          content:
-            "Invalid day of the week. Please provide a valid day (e.g., Monday).",
+          content: "Invalid day of the week.",
           flags: MessageFlags.Ephemeral,
         });
       }
 
-      const job = await scheduleService.scheduleMessage(
+      await scheduleService.scheduleMessage(
         interaction,
         timezone,
         `${hours}:${minutes}`,
@@ -89,9 +82,9 @@ module.exports = {
           { name: "ID", value: interaction.id }
         );
 
-      await interaction.editReply({ 
+      await interaction.editReply({
         embeds: [embed],
-        flags: MessageFlags.Ephemeral
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error("Error in repeat command:", error);

@@ -1,7 +1,6 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const { EmbedBuilder } = require("discord.js");
+const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
-const { parseTime, getTimezoneChoices } = require("../utils/timeUtils");
+const { parseTime } = require("../utils/timeUtils");
 const moment = require("moment-timezone");
 
 module.exports = {
@@ -9,13 +8,12 @@ module.exports = {
     .setName("schedule")
     .setDescription("Schedule a message at a specified time")
     .addStringOption((option) =>
-  option
-    .setName("timezone")
-    .setDescription("Choose your timezone")
-    .setRequired(true)
-    .addChoices(...getTimezoneChoices())
-  )
-
+      option
+        .setName("timezone")
+        .setDescription("Choose your timezone")
+        .setRequired(true)
+        .setAutocomplete(true) // 🔹 changed
+    )
     .addStringOption((option) =>
       option
         .setName("time")
@@ -28,6 +26,7 @@ module.exports = {
         .setDescription("The message to schedule")
         .setRequired(true)
     ),
+
   async execute(interaction) {
     const timezone = interaction.options.getString("timezone");
     const time = interaction.options.getString("time");
@@ -43,7 +42,8 @@ module.exports = {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const { hours, minutes } = parseTime(time);
-      const job = await scheduleService.scheduleMessage(
+
+      await scheduleService.scheduleMessage(
         interaction,
         timezone,
         `${hours}:${minutes}`,
@@ -59,9 +59,9 @@ module.exports = {
           { name: "ID", value: interaction.id }
         );
 
-      await interaction.editReply({ 
+      await interaction.editReply({
         embeds: [embed],
-        flags: MessageFlags.Ephemeral
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       console.error("Error in schedule command:", error);
