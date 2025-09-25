@@ -1,33 +1,40 @@
 const cron = require("node-cron");
-const moment = require("moment-timezone");
+const { DateTime, IANAZone } = require("luxon");
+const { mapToCronDay } = require("../utils/timeUtils");
 
 class ScheduleService {
   constructor() {
     this.scheduledJobs = new Map();
   }
 
-  async scheduleMessage(
-    interaction,
-    timezone,
-    time,
-    scheduledMessage,
-    dayNumber = "*"
-  ) {
-    const [hours, minutes] = time.split(":");
-    const cronExpression = `${minutes} ${hours} * * ${dayNumber}`;
+  async scheduleMessage(interaction, timezone, time, scheduledMessage, dayNumber = "*") {
+    // Validate timezone
+    if (!IANAZone.isValidZone(timezone)) {
+      throw new Error(`Invalid timezone: ${timezone}`);
+    }
 
-    // Calculate the execution time for one-time alarms
+    // Validate dayNumber
+    if (dayNumber !== "*" && (isNaN(parseInt(dayNumber)) || parseInt(dayNumber) < 0 || parseInt(dayNumber) > 6)) {
+      throw new Error(`Invalid dayNumber: ${dayNumber}`);
+    }
+
+    const [hours, minutes] = time.split(":");
+    const cronDay = mapToCronDay(dayNumber);
+    const cronExpression = `${minutes} ${hours} * * ${cronDay}`;
+
     let executionTime = null;
     if (dayNumber === "*") {
-      executionTime = moment()
-        .tz(timezone)
-        .hour(parseInt(hours))
-        .minute(parseInt(minutes))
-        .second(0);
+      const now = DateTime.now();
+      if (!now) {
+        console.error("DateTime.now() returned undefined");
+        throw new Error("Failed to get current time from Luxon");
+      }
+      executionTime = now
+        .setZone(timezone)
+        .set({ hour: parseInt(hours), minute: parseInt(minutes), second: 0 });
 
-      // If the time has already passed today, set it for tomorrow
-      if (executionTime.isBefore(moment().tz(timezone))) {
-        executionTime.add(1, "day");
+      if (executionTime < DateTime.now().setZone(timezone)) {
+        executionTime = executionTime.plus({ days: 1 });
       }
     }
 
@@ -36,14 +43,12 @@ class ScheduleService {
       async () => {
         try {
           await interaction.channel.send(scheduledMessage);
-          console.log("Scheduled message sent successfully.");
-
           if (dayNumber === "*") {
             this.scheduledJobs.delete(interaction.id);
             job.stop();
           }
         } catch (error) {
-          console.error("Error sending scheduled message:", error);
+          console.error(`Error sending scheduled message id=${interaction.id}:`, error);
         }
       },
       { timezone }
@@ -59,8 +64,8 @@ class ScheduleService {
         dayNumber,
         channelId: interaction.channel.id,
         guildId: interaction.guild.id,
-        createdAt: moment().tz(timezone).format(),
-        executionTime: executionTime ? executionTime.format() : null,
+        createdAt: DateTime.now().setZone(timezone).toISO(),
+        executionTime: executionTime ? executionTime.toISO() : null,
       },
     });
 
@@ -68,40 +73,30 @@ class ScheduleService {
   }
 
   getJobsForGuild(guildId) {
-    // First clean up expired alarms
     this.cleanupExpiredAlarms();
-
-    // Then return the remaining valid alarms
-    return Array.from(this.scheduledJobs.entries()).filter(([_, jobInfo]) => {
+    return Array.from(this.scheduledJobs.entries()).filter(([id, jobInfo]) => {
       if (jobInfo.details.guildId !== guildId) {
         return false;
       }
-
-      // Always include recurring alarms
       if (jobInfo.details.dayNumber !== "*") {
         return true;
       }
-
-      // For one-time alarms, compare times in the same timezone
       if (jobInfo.details.executionTime) {
-        const executionMoment = moment(jobInfo.details.executionTime);
-        const nowMoment = moment().tz(jobInfo.details.timezone);
-        return executionMoment.isAfter(nowMoment);
+        const executionTime = DateTime.fromISO(jobInfo.details.executionTime);
+        const now = DateTime.now().setZone(jobInfo.details.timezone);
+        return executionTime > now;
       }
-
       return false;
     });
   }
 
   cleanupExpiredAlarms() {
     const entries = Array.from(this.scheduledJobs.entries());
-
     for (const [id, jobInfo] of entries) {
       if (jobInfo.details.dayNumber === "*" && jobInfo.details.executionTime) {
-        const executionMoment = moment(jobInfo.details.executionTime);
-        const nowMoment = moment().tz(jobInfo.details.timezone);
-
-        if (executionMoment.isBefore(nowMoment)) {
+        const executionTime = DateTime.fromISO(jobInfo.details.executionTime);
+        const now = DateTime.now().setZone(jobInfo.details.timezone);
+        if (executionTime < now) {
           console.log(`Cleaning up expired alarm: ${id}`);
           jobInfo.job.stop();
           this.scheduledJobs.delete(id);

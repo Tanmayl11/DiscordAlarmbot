@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
-const { parseTime, getDayChoices } = require("../utils/timeUtils");
-const moment = require("moment-timezone");
+const { parseTime, getDayChoices, DAYS } = require("../utils/timeUtils");
+const { IANAZone } = require("luxon");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -25,7 +25,7 @@ module.exports = {
         .setName("timezone")
         .setDescription("Choose your timezone")
         .setRequired(true)
-        .setAutocomplete(true) // 🔹 changed
+        .setAutocomplete(true)
     )
     .addStringOption((option) =>
       option
@@ -40,7 +40,8 @@ module.exports = {
     const timezone = interaction.options.getString("timezone");
     const scheduledMessage = interaction.options.getString("message");
 
-    if (!moment.tz.zone(timezone)) {
+    // Validate timezone using Luxon
+    if (!IANAZone.isValidZone(timezone)) {
       return interaction.reply({
         content: "Invalid timezone.",
         flags: MessageFlags.Ephemeral,
@@ -51,18 +52,15 @@ module.exports = {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const { hours, minutes } = parseTime(time);
 
-      const validDays = [
-        "sunday", "monday", "tuesday",
-        "wednesday", "thursday", "friday", "saturday",
-      ];
-      const dayIndex = validDays.indexOf(day.toLowerCase());
-
-      if (dayIndex === -1) {
+      const dayChoices = getDayChoices();
+      const dayChoice = dayChoices.find((choice) => choice.value === day.toLowerCase());
+      if (!dayChoice) {
         return interaction.reply({
           content: "Invalid day of the week.",
           flags: MessageFlags.Ephemeral,
         });
       }
+      const dayIndex = dayChoice.index; // 0=Monday, 6=Sunday (Monday-first)
 
       await scheduleService.scheduleMessage(
         interaction,
@@ -76,7 +74,7 @@ module.exports = {
         .setColor("#0099ff")
         .setTitle("Repeating Message Scheduled")
         .addFields(
-          { name: "Day", value: day },
+          { name: "Day", value: DAYS[dayIndex] },
           { name: "Time", value: `${time} ${timezone}` },
           { name: "Message", value: scheduledMessage },
           { name: "ID", value: interaction.id }

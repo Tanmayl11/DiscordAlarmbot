@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, EmbedBuilder } = require("discord.js");
 const scheduleService = require("../services/scheduleService");
 const { parseTime } = require("../utils/timeUtils");
-const moment = require("moment-timezone");
+const { DateTime, IANAZone } = require("luxon");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -12,7 +12,7 @@ module.exports = {
         .setName("timezone")
         .setDescription("Choose your timezone")
         .setRequired(true)
-        .setAutocomplete(true) // 🔹 changed
+        .setAutocomplete(true)
     )
     .addStringOption((option) =>
       option
@@ -32,7 +32,8 @@ module.exports = {
     const time = interaction.options.getString("time");
     const scheduledMessage = interaction.options.getString("message");
 
-    if (!moment.tz.zone(timezone)) {
+    // Validate timezone using Luxon
+    if (!IANAZone.isValidZone(timezone)) {
       return interaction.reply({
         content: "Invalid timezone.",
         flags: MessageFlags.Ephemeral,
