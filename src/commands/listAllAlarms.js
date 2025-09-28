@@ -20,8 +20,8 @@ module.exports = {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      scheduleService.cleanupExpiredAlarms();
-      const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
+      await scheduleService.cleanupExpiredAlarms();
+      const guildAlarms = await scheduleService.getJobsForGuild(interaction.guild.id);
 
       if (guildAlarms.length === 0) {
         const noAlarmsEmbed = new EmbedBuilder()

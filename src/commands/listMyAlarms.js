@@ -42,7 +42,7 @@ module.exports = {
     try {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-      const allJobs = scheduleService.getJobsForGuild(guildId);
+      const allJobs = await scheduleService.getJobsForGuild(guildId);
       const userJobs = filterUserJobs(allJobs, userId);
 
       if (userJobs.length === 0) {

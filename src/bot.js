@@ -1,7 +1,8 @@
 const { Client, GatewayIntentBits } = require("discord.js");
 const express = require("express");
 const config = require("./config");
-const axios = require("axios"); // Add this for HTTP requests
+const axios = require("axios");
+const scheduleService = require("./services/scheduleService");
 
 const client = new Client({
   intents: [
@@ -21,24 +22,37 @@ const server = app.listen(config.port, () =>
 
 // Self-pinging mechanism
 const startSelfPing = () => {
-  // Get the URL from environment variable or construct it
   const appUrl = process.env.APP_URL || `http://localhost:${config.port}`;
   
-  console.log(`Setting up self-ping to ${appUrl}/health every ${config.pingInterval}ms`);
-  
-  setInterval(async () => {
+  const pingInterval = setInterval(async () => {
     try {
-      const response = await axios.get(`${appUrl}/health`);
-      //console.log(`Self-ping successful: ${response.status}`);
+      await axios.get(`${appUrl}/health`);
     } catch (error) {
       console.error("Self-ping failed:", error.message);
     }
   }, config.pingInterval);
+
+  return pingInterval;
 };
 
-// Start self-pinging after the bot is ready
-client.once("clientReady", () => {
-  startSelfPing();
+let pingInterval;
+
+// Single ready handler - this should be the ONLY "clientReady" handler
+client.once("clientReady", async () => {
+  console.log(`Bot is ready. Logged in as ${client.user.tag}`);
+  
+  try {
+    // Set the client reference for schedule service
+    scheduleService.setClient(client);
+    
+    // Initialize the schedule service
+    await scheduleService.initialize();
+    console.log("Schedule service initialized successfully");
+  } catch (error) {
+    console.error("Error initializing schedule service:", error);
+  }
+  
+  pingInterval = startSelfPing();
 });
 
 // Error handling
@@ -48,11 +62,28 @@ process.on("unhandledRejection", (error) => {
 });
 
 // Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received. Shutting down gracefully.");
-  client.destroy();
-  server.close();
-  process.exit(0);
-});
+async function gracefulShutdown(signal) {
+  console.log(`${signal} received. Shutting down gracefully...`);
+  
+  try {
+    if (pingInterval) {
+      clearInterval(pingInterval);
+    }
+
+    await scheduleService.disconnect();
+    client.destroy();
+    
+    server.close(() => {
+      process.exit(0);
+    });
+
+  } catch (error) {
+    console.error("Error during graceful shutdown:", error);
+    process.exit(1);
+  }
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT")); // Ctrl+C
 
 module.exports = { client };
