@@ -147,6 +147,87 @@ function formatAlarmTiming(jobInfo) {
   return `every ${DAYS[targetDay]} at ${time}`;
 }
 
+/**
+ * Validate and parse date string in DD/MM/YYYY format
+ * @param {string} dateString - Date in DD/MM/YYYY format
+ * @param {string} timezone - IANA timezone
+ * @returns {Object} - { day, month, year, dateTime }
+ * @throws {Error} - If date is invalid
+ */
+function validateAndParseDate(dateString, timezone) {
+  const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  
+  if (!dateRegex.test(dateString)) {
+    throw new Error("Invalid date format. Please use DD/MM/YYYY (e.g., 25/12/2024)");
+  }
+
+  const [day, month, year] = dateString.split('/').map(Number);
+  
+  // Create DateTime object to validate the date
+  const dateTime = DateTime.fromObject(
+    { year, month, day },
+    { zone: timezone }
+  );
+  
+  if (!dateTime.isValid) {
+    throw new Error("Invalid date. Please check the day, month, and year values.");
+  }
+
+  return { day, month, year, dateTime };
+}
+
+/**
+ * Validate that a date/time combination is in the future
+ * @param {DateTime} dateTime - Luxon DateTime object
+ * @param {string} timezone - IANA timezone
+ * @throws {Error} - If date/time is not in the future
+ */
+function validateFutureDateTime(dateTime, timezone) {
+  const now = DateTime.now().setZone(timezone);
+  
+  if (dateTime <= now) {
+    throw new Error("Specified date and time must be in the future");
+  }
+}
+
+/**
+ * Calculate execution date for scheduled message
+ * @param {string} time - Time in HH:MM format
+ * @param {string} timezone - IANA timezone
+ * @param {string|null} dateString - Optional date in DD/MM/YYYY format
+ * @returns {DateTime} - Luxon DateTime object
+ */
+function calculateExecutionDate(time, timezone, dateString = null) {
+  const [hours, minutes] = time.split(':').map(Number);
+  const now = DateTime.now().setZone(timezone);
+  
+  if (dateString) {
+    // Use provided date
+    const { year, month, day } = validateAndParseDate(dateString, timezone);
+    const executionTime = DateTime.fromObject(
+      { year, month, day, hour: hours, minute: minutes, second: 0, millisecond: 0 },
+      { zone: timezone }
+    );
+    
+    validateFutureDateTime(executionTime, timezone);
+    return executionTime;
+  } else {
+    // Default to today, or tomorrow if time has passed
+    let executionTime = now.set({
+      hour: hours,
+      minute: minutes,
+      second: 0,
+      millisecond: 0
+    });
+    
+    if (executionTime <= now) {
+      executionTime = executionTime.plus({ days: 1 });
+    }
+    
+    return executionTime;
+  }
+}
+
 module.exports = {
   parseTime,
   getAllTimezones,
@@ -159,5 +240,8 @@ module.exports = {
   getNextAlarmOccurrence,
   createAlarmComparator,
   formatAlarmTiming,
+  validateAndParseDate,
+  validateFutureDateTime,
+  calculateExecutionDate,
   DAYS,
 };

@@ -1,7 +1,7 @@
 const cron = require("node-cron");
 const { DateTime, IANAZone } = require("luxon");
 const { PrismaClient } = require("@prisma/client");
-const { mapToCronDay } = require("../utils/timeUtils");
+const { mapToCronDay, calculateExecutionDate } = require("../utils/timeUtils");
 
 class ScheduleService {
   constructor() {
@@ -97,7 +97,7 @@ class ScheduleService {
   /**
    * Schedule a new message
    */
-  async scheduleMessage(interaction, timezone, time, message, dayNumber = "*") {
+  async scheduleMessage(interaction, timezone, time, message, dayNumber = "*", dateString = null) {
     // Validate inputs
     if (!IANAZone.isValidZone(timezone)) {
       throw new Error(`Invalid timezone: ${timezone}`);
@@ -106,13 +106,21 @@ class ScheduleService {
     this.validateDayNumber(dayNumber);
 
     const [hours, minutes] = time.split(":");
-    const cronDay = mapToCronDay(dayNumber);
-    const cronExpression = `${minutes} ${hours} * * ${cronDay}`;
 
     // Calculate execution time for one-time alarms
     let executionTime = null;
+    let cronExpression;
+
     if (dayNumber === "*") {
-      executionTime = this.calculateOneTimeExecution(timezone, hours, minutes);
+      executionTime = calculateExecutionDate(time, timezone, dateString);
+      
+      // For one-time alarms, create a cron expression with specific date
+      // Format: minute hour day month *
+      cronExpression = `${minutes} ${hours} ${executionTime.day} ${executionTime.month} *`;
+    } else {
+      // For recurring alarms, use day of week
+      const cronDay = mapToCronDay(dayNumber);
+      cronExpression = `${minutes} ${hours} * * ${cronDay}`;
     }
 
     // Save to database
@@ -141,25 +149,6 @@ class ScheduleService {
 
     this.activeJobs.set(interaction.id, job);
     return alarm;
-  }
-
-  /**
-   * Calculate execution time for one-time alarms
-   */
-  calculateOneTimeExecution(timezone, hours, minutes) {
-    const now = DateTime.now().setZone(timezone);
-    let executionTime = now.set({ 
-      hour: parseInt(hours), 
-      minute: parseInt(minutes), 
-      second: 0 
-    });
-
-    // If time has passed today, schedule for tomorrow
-    if (executionTime <= now) {
-      executionTime = executionTime.plus({ days: 1 });
-    }
-
-    return executionTime;
   }
 
   /**
