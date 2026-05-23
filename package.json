@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@discordjs/rest": "^2.6.0",
-    "axios": "^1.12.2",
+    "axios": "^1.16.1",
     "discord-api-types": "^0.38.26",
     "discord-scheduler-bot": "file:",
     "discord.js": "^14.22.1",

@@ -24,37 +24,36 @@ module.exports = {
       const guildAlarms = scheduleService.getJobsForGuild(interaction.guild.id);
 
       if (guildAlarms.length === 0) {
-        const noAlarmsEmbed = new EmbedBuilder()
-          .setColor("#FFD700")
-          .setTitle("No Active Alarms")
-          .setDescription("No active alarms on this server.")
-          .setFooter({ text: "This information is visible only to you." });
-
         return interaction.editReply({
-          embeds: [noAlarmsEmbed],
+          embeds: [
+            new EmbedBuilder()
+              .setColor("#FFD700")
+              .setTitle("No Active Alarms")
+              .setDescription("No active alarms on this server.")
+              .setFooter({ text: "This information is visible only to you." }),
+          ],
           flags: MessageFlags.Ephemeral,
         });
       }
 
       const sortedAlarms = guildAlarms.toSorted(createAlarmComparator());
-      const alarmList = formatAlarmList(sortedAlarms);
-      const description = alarmList.join("\n\n").substring(0, 4096);
-
-      const embed = new EmbedBuilder()
-        .setColor("#0099ff")
-        .setTitle("Active Alarms")
-        .setDescription(description)
-        .setFooter({ text: "This information is visible only to you." });
+      const description = formatAlarmList(sortedAlarms).join("\n\n").substring(0, 4096);
 
       await interaction.editReply({
-        embeds: [embed],
-        flags: MessageFlags.Ephemeral
+        embeds: [
+          new EmbedBuilder()
+            .setColor("#0099ff")
+            .setTitle("Active Alarms")
+            .setDescription(description)
+            .setFooter({ text: "This information is visible only to you." }),
+        ],
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
-      console.error(`Error in list-all-alarms command for guild ${interaction.guild.id}:`, error);
+      console.error(`Error in list-all-alarms:`, error);
       await interaction.editReply({
         content: `An error occurred: ${error.message}`,
-        flags: MessageFlags.Ephemeral
+        flags: MessageFlags.Ephemeral,
       });
     }
   },
