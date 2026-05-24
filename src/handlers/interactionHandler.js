@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 const { MessageFlags } = require("discord.js");
 const { getAllTimezones } = require("../utils/timeUtils");
 
@@ -19,7 +19,14 @@ const ALL_TIMEZONES_SORTED = getAllTimezones()
 
 async function handleAutocomplete(interaction) {
   const focused = interaction.options.getFocused(true);
-  if (focused.name !== "timezone") return;
+  if (focused.name !== "timezone") {
+    try {
+      await interaction.respond([]);
+    } catch (err) {
+      if (err.code !== 10062) console.error("Autocomplete error:", err);
+    }
+    return;
+  }
 
   const query = focused.value.toLowerCase();
   const filtered = query
@@ -29,7 +36,6 @@ async function handleAutocomplete(interaction) {
   try {
     await interaction.respond(filtered.map((tz) => ({ name: tz.name, value: tz.value })));
   } catch (err) {
-    // Interaction expired before we could respond — safe to ignore
     if (err.code !== 10062) console.error("Autocomplete error:", err);
   }
 }

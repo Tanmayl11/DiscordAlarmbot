@@ -1,7 +1,7 @@
 const { REST } = require("@discordjs/rest");
 const { Routes } = require("discord-api-types/v9");
-const fs = require("fs");
-const path = require("path");
+const fs = require("node:fs");
+const path = require("node:path");
 require("dotenv").config();
 
 const commands = [];
@@ -33,7 +33,9 @@ async function deployCommands() {
     console.log(`Found ${existingCommands.length} existing commands:`);
     existingCommands.forEach((cmd) => console.log(`- ${cmd.name}`));
 
-    if (JSON.stringify(existingCommands) !== JSON.stringify(commands)) {
+    if (JSON.stringify(existingCommands) === JSON.stringify(commands)) {
+      console.log("Application (/) commands are up to date.");
+    } else {
       console.log("Updating application (/) commands...");
 
       await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
@@ -41,8 +43,6 @@ async function deployCommands() {
       });
 
       console.log("Successfully reloaded application (/) commands.");
-    } else {
-      console.log("Application (/) commands are up to date.");
     }
   } catch (error) {
     console.error("Error deploying commands:", error);
