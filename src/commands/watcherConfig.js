@@ -126,7 +126,7 @@ function handleList(interaction, guildId) {
 }
 
 const SUB_HANDLERS = {
-  add: handleAdd,
+  "add-keyword-role": handleAdd,
   remove: handleRemove,
   list: handleList,
 };
@@ -140,7 +140,7 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addSubcommand((sub) =>
       sub
-        .setName("add-keyword-role")
+        .setName("add")
         .setDescription("Add a rule: comma-separated keywords that ping comma-separated roles")
         .addStringOption((opt) =>
           opt
