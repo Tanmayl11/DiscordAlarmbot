@@ -126,7 +126,7 @@ function handleList(interaction, guildId) {
 }
 
 const SUB_HANDLERS = {
-  "add-keyword-role": handleAdd,
+  add: handleAdd,
   remove: handleRemove,
   list: handleList,
 };
