@@ -53,51 +53,17 @@ class MessageWatcherService {
     );
   }
 
-  // Sends with role mentions in `content` so Discord actually pings them,
-  // and the label/time in the message body.
-  async _sendAlert(channelId, rolePing, text, client) {
-    const ch = await client.channels.fetch(channelId);
-    if (!ch) return;
-    // Put role pings in content so they fire, text is the readable body
-    const payload = rolePing
-      ? { content: rolePing + "\n" + text }
-      : { content: text };
-    await ch.send(payload);
-  }
-
-  _registerAlarm(alarmId, options, client) {
-    const { alertChannelId, rolePing, alertText, alarmTime, message, guildId } = options;
-    const timeoutId = setTimeout(async () => {
-      scheduleService.scheduledJobs.delete(alarmId);
-      try {
-        await this._sendAlert(alertChannelId, rolePing, alertText, client);
-      } catch (err) {
-        console.error("[MessageWatcher] Delayed alert error:", err);
-      }
-    }, alarmTime.toMillis() - Date.now());
-
-    scheduleService.scheduledJobs.set(alarmId, {
-      job: { stop: () => clearTimeout(timeoutId) },
-      details: {
-        createdBy: message.author.id,
-        timezone: "UTC",
-        time: alarmTime.setZone("UTC").toFormat("HH:mm"),
-        message: (rolePing ? rolePing + " " : "") + alertText,
-        dayNumber: "*",
-        channelId: alertChannelId,
-        guildId,
-        createdAt: DateTime.now().toUTC().toISO(),
-        executionTime: alarmTime.toUTC().toISO(),
-      },
-    });
-  }
-
   async _scheduleEvent(event, matchingConfigs, rolePing, guildId, message, client) {
     const { label, eventTime } = event;
     const alarmTime = eventTime.minus({ minutes: 1 });
     const msUntilAlarm = alarmTime.toMillis() - Date.now();
     const eventUnix = Math.floor(eventTime.toSeconds());
-    const alertText = "⏰ **" + label + "** — 1 minute warning! <t:" + eventUnix + ":t> (<t:" + eventUnix + ":R>)";
+
+    // Full alert text including role ping on its own line if present
+    const bodyText = "⏰ **" + label + "** — 1 minute warning! <t:" + eventUnix + ":t> (<t:" + eventUnix + ":R>)";
+    const alertText = rolePing ? rolePing + "\n" + bodyText : bodyText;
+
+    // Stable ID prevents duplicate alarms for the same event
     const alarmId = "watcher_" + guildId + "_" + label + "_" + eventUnix;
 
     if (scheduleService.scheduledJobs.has(alarmId)) {
@@ -105,18 +71,40 @@ class MessageWatcherService {
       return;
     }
 
-    console.log("[MessageWatcher] guild=" + guildId + " label=\"" + label + "\" event=<t:" + eventUnix + ":R> alarmIn=" + Math.round(msUntilAlarm / 1000) + "s");
+    console.log(
+      "[MessageWatcher] guild=" + guildId + " label=\"" + label + "\"" +
+      " event=<t:" + eventUnix + ":R> alarmIn=" + Math.round(msUntilAlarm / 1000) + "s"
+    );
 
     for (const config of matchingConfigs) {
+      const alertChannel = await client.channels.fetch(config.alertChannelId).catch(() => null);
+      if (!alertChannel) continue;
+
       if (msUntilAlarm <= 0) {
-        try {
-          await this._sendAlert(config.alertChannelId, rolePing, "⏰ **" + label + "** — Now! <t:" + eventUnix + ":t>", client);
-        } catch (err) {
-          console.error("[MessageWatcher] Immediate alert error:", err);
-        }
-      } else {
-        this._registerAlarm(alarmId, { alertChannelId: config.alertChannelId, rolePing, alertText, alarmTime, message, guildId }, client);
+        await alertChannel.send(alertText).catch((err) =>
+          console.error("[MessageWatcher] Immediate alert error:", err)
+        );
+        continue;
       }
+
+      // Build a fake interaction so scheduleService.scheduleMessage handles everything
+      const fakeInteraction = {
+        id: alarmId,
+        user:    { id: message.author.id },
+        channel: alertChannel,
+        guild:   message.guild,
+      };
+
+      const alarmTimeUTC = alarmTime.setZone("UTC");
+
+      await scheduleService.scheduleMessage(
+        fakeInteraction,
+        "UTC",
+        alarmTimeUTC.toFormat("HH:mm"),
+        alertText,
+        "*",       // one-time
+        alarmId    // idOverride — keeps the stable watcher ID
+      );
     }
   }
 
@@ -128,6 +116,7 @@ class MessageWatcherService {
     if (matchingConfigs.length === 0) return;
 
     const content = message.content ?? "";
+
     const events = this.parseFoeHelperMessage(content);
     if (events.length === 0) return;
 

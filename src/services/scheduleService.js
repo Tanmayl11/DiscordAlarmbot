@@ -7,13 +7,11 @@ class ScheduleService {
     this.scheduledJobs = new Map();
   }
 
-  async scheduleMessage(interaction, timezone, time, scheduledMessage, dayNumber = "*") {
-    // Validate timezone
+  async scheduleMessage(interaction, timezone, time, scheduledMessage, dayNumber = "*", idOverride = null) {
     if (!IANAZone.isValidZone(timezone)) {
       throw new Error(`Invalid timezone: ${timezone}`);
     }
 
-    // Validate dayNumber
     if (dayNumber !== "*" && (isNaN(parseInt(dayNumber)) || parseInt(dayNumber) < 0 || parseInt(dayNumber) > 6)) {
       throw new Error(`Invalid dayNumber: ${dayNumber}`);
     }
@@ -21,14 +19,11 @@ class ScheduleService {
     const [hours, minutes] = time.split(":");
     const cronDay = mapToCronDay(dayNumber);
     const cronExpression = `${minutes} ${hours} * * ${cronDay}`;
+    const alarmId = idOverride ?? interaction.id;
 
     let executionTime = null;
     if (dayNumber === "*") {
       const now = DateTime.now();
-      if (!now) {
-        console.error("DateTime.now() returned undefined");
-        throw new Error("Failed to get current time from Luxon");
-      }
       executionTime = now
         .setZone(timezone)
         .set({ hour: parseInt(hours), minute: parseInt(minutes), second: 0 });
@@ -44,17 +39,17 @@ class ScheduleService {
         try {
           await interaction.channel.send(scheduledMessage);
           if (dayNumber === "*") {
-            this.scheduledJobs.delete(interaction.id);
+            this.scheduledJobs.delete(alarmId);
             job.stop();
           }
         } catch (error) {
-          console.error(`Error sending scheduled message id=${interaction.id}:`, error);
+          console.error(`Error sending scheduled message id=${alarmId}:`, error);
         }
       },
       { timezone }
     );
 
-    this.scheduledJobs.set(interaction.id, {
+    this.scheduledJobs.set(alarmId, {
       job,
       details: {
         createdBy: interaction.user.id,
@@ -75,12 +70,8 @@ class ScheduleService {
   getJobsForGuild(guildId) {
     this.cleanupExpiredAlarms();
     return Array.from(this.scheduledJobs.entries()).filter(([id, jobInfo]) => {
-      if (jobInfo.details.guildId !== guildId) {
-        return false;
-      }
-      if (jobInfo.details.dayNumber !== "*") {
-        return true;
-      }
+      if (jobInfo.details.guildId !== guildId) return false;
+      if (jobInfo.details.dayNumber !== "*") return true;
       if (jobInfo.details.executionTime) {
         const executionTime = DateTime.fromISO(jobInfo.details.executionTime);
         const now = DateTime.now().setZone(jobInfo.details.timezone);
