@@ -60,7 +60,7 @@ class MessageWatcherService {
     const eventUnix = Math.floor(eventTime.toSeconds());
 
     // Full alert text including role ping on its own line if present
-    const bodyText = "⏰ **" + label + "** — 1 minute warning! <t:" + eventUnix + ":t> (<t:" + eventUnix + ":R>)";
+    const bodyText = "⏰ **" + label + "** — 1 minute! <t:" + eventUnix + ":t> (<t:" + eventUnix + ":R>)";
     const alertText = rolePing ? rolePing + "\n" + bodyText : bodyText;
 
     // Stable ID prevents duplicate alarms for the same event
